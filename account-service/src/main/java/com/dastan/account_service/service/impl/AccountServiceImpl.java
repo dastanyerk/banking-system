@@ -11,7 +11,6 @@ import com.dastan.account_service.util.AccountNumberGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-
 import java.math.BigDecimal;
 
 @Service
@@ -22,6 +21,7 @@ public class AccountServiceImpl implements AccountService {
     private final AccountRepository accountRepository;
     private final AccountNumberGenerator accountNumberGenerator;
 
+    @Override
     public AccountResponse createAccount(AccountRequest request) {
         if(accountRepository.existsByEmail(request.getEmail())) {
             throw new RuntimeException("");
@@ -38,6 +38,7 @@ public class AccountServiceImpl implements AccountService {
     }
 
 
+    @Override
     public AccountResponse getAccount(String accountNumber) {
         Account account = accountRepository.findByAccountNumber(accountNumber).orElseThrow(
                 () -> new RuntimeException("")
@@ -46,6 +47,7 @@ public class AccountServiceImpl implements AccountService {
         return AccountMapper.toResponse(account);
     }
 
+    @Override
     public BigDecimal getBalance(String accountNumber) {
         Account account = accountRepository.findByAccountNumber(accountNumber).orElseThrow(
                 () -> new RuntimeException("")
@@ -54,6 +56,7 @@ public class AccountServiceImpl implements AccountService {
         return account.getBalance();
     }
 
+    @Override
     public void blockAccount(String accountNumber) {
         Account account = accountRepository.findByAccountNumber(accountNumber).orElseThrow(
                 () -> new RuntimeException("")
@@ -66,6 +69,7 @@ public class AccountServiceImpl implements AccountService {
         log.info(accountNumber);
     }
 
+    @Override
     public void deductBalance(String accountNumber, BigDecimal amount) {
         Account account = accountRepository.findByAccountNumber(accountNumber).orElseThrow(
                 () -> new RuntimeException("")
@@ -83,6 +87,7 @@ public class AccountServiceImpl implements AccountService {
         accountRepository.save(account);
     }
 
+    @Override
     public void depositBalance(String accountNumber, BigDecimal amount) {
         Account account = accountRepository.findByAccountNumber(accountNumber).orElseThrow(
                 () -> new RuntimeException("")

@@ -2,7 +2,6 @@ package com.dastan.account_service.service;
 
 import com.dastan.account_service.dto.AccountRequest;
 import com.dastan.account_service.dto.AccountResponse;
-
 import java.math.BigDecimal;
 
 public interface AccountService {

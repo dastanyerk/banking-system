@@ -3,9 +3,7 @@ package com.dastan.account_service.mapper;
 import com.dastan.account_service.dto.AccountRequest;
 import com.dastan.account_service.dto.AccountResponse;
 import com.dastan.account_service.entity.Account;
-import lombok.RequiredArgsConstructor;
 
-@RequiredArgsConstructor
 public class AccountMapper {
     public static Account toEntity(AccountRequest request) {
         if (request == null) return null;

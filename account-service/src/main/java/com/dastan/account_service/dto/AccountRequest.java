@@ -9,7 +9,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import java.math.BigDecimal;
 
 @Data
@@ -30,7 +29,7 @@ public class AccountRequest {
     @NotNull(message = "Account Type is required")
     private AccountType accountType;
 
-    @NotNull(message = "Inital deposit is required")
+    @NotNull(message = "Initial deposit is required")
     @Positive(message = "Initial deposit must be positive number")
     private BigDecimal initialDeposit;
 }
