@@ -1,6 +1,7 @@
 package com.dastan.transaction_service.client;
 
 import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -12,4 +13,6 @@ public interface AccountServiceClient {
     @PutMapping("/api/v1/accounts/{accountNumber}/deduct")
     String deductBalance(@PathVariable String accountNumber, @RequestParam BigDecimal amount);
 
+    @PutMapping("/api/v1/accounts/{accountNumber}/deposit")
+    String depositBalance(@PathVariable String accountNumber, @RequestParam BigDecimal amount);
 }

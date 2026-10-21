@@ -46,7 +46,7 @@ public class AccountController {
         return ResponseEntity.ok("Balance deducted successfully");
     }
 
-    @PutMapping("/{accountNumber}/popup")
+    @PutMapping("/{accountNumber}/deposit")
     public ResponseEntity<String> depositBalance(@PathVariable String accountNumber, @RequestParam BigDecimal amount) {
         accountService.depositBalance(accountNumber, amount);
         return ResponseEntity.ok("Balance deducted successfully");
