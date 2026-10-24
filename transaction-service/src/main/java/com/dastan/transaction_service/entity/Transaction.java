@@ -3,6 +3,7 @@ package com.dastan.transaction_service.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -13,7 +14,7 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @Builder
-@EntityListeners(EntityListeners.class)
+@EntityListeners(AuditingEntityListener.class)
 @Table(name = "transactions")
 
 public class Transaction {
@@ -31,11 +32,11 @@ public class Transaction {
     private BigDecimal amount;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, name = "transaction_type")
+    @Column(nullable = false, name = "transaction_type", columnDefinition = "varchar(30)")
     private TransactionType transactionType;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, name = "transaction_status")
+    @Column(nullable = false, name = "transaction_status", columnDefinition = "varchar(30)")
     private TransactionStatus transactionStatus;
 
     private String description;

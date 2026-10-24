@@ -3,6 +3,7 @@ package com.dastan.transaction_service.service;
 import com.dastan.transaction_service.entity.Transaction;
 import com.dastan.transaction_service.entity.TransactionStatus;
 import com.dastan.transaction_service.repository.TransactionRepository;
+import com.dastan.transaction_service.service.impl.TransactionServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -11,6 +12,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Service;
 
+import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -24,6 +26,7 @@ public class TransactionEventConsumer {
     private final RedisTemplate<String, String> redisTemplate;
     private final TransactionService transactionService;
     private static final long OTP_EXPIRY_MINUTES = 5;
+    private static final SecureRandom RANDOM = new SecureRandom();
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private static final String TRANSACTION_OTP_GENERATED_TOPIC = "transaction.otp.generated";
@@ -47,9 +50,10 @@ public class TransactionEventConsumer {
                 return;
             }
 
-            String otp = String.format("%06d", (int) (Math.random() * 900000) + 100000);
+            String otp = String.format("%06d", RANDOM.nextInt(1_000_000));
 
-            String otpKey = "verification: otp" + transactionId;
+            String otpKey = TransactionServiceImpl.OTP_KEY_PREFIX + transactionId;
+
             redisTemplate.opsForValue().set(otpKey, otp, OTP_EXPIRY_MINUTES, TimeUnit.MINUTES);
 
             transaction.setTransactionStatus(TransactionStatus.PENDING_VERIFICATION);

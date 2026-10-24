@@ -9,6 +9,7 @@ public interface AccountService {
     AccountResponse getAccount(String accountNumber);
     BigDecimal getBalance(String accountNumber);
     void blockAccount(String accountNumber);
+    void unblockAccount(String accountNumber);
     void deductBalance(String accountNumber, BigDecimal amount);
     void depositBalance(String accountNumber, BigDecimal amount);
 }

@@ -39,10 +39,10 @@ public class NotificationService {
             String receiverAccount = (String) payload.get("receiverAccountNumber");
             String amount = payload.get("amount").toString();
 
-            sendAlert(senderAccount, "DEBIT ALERT", String.format("%s debited from account %s",
+            sendAlert(senderAccount, "DEDUCT ALERT", String.format("%s deducted from account %s",
                     amount, senderAccount));
 
-            sendAlert(receiverAccount, "CREDIT ALERT", String.format("%s credited from account %s",
+            sendAlert(receiverAccount, "DEPOSIT ALERT", String.format("%s deposited from account %s",
                     amount, receiverAccount));
 
         } catch (Exception e) {

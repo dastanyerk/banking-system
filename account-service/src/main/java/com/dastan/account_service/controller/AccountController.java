@@ -40,6 +40,13 @@ public class AccountController {
         return ResponseEntity.ok("Account blocked successfully");
     }
 
+    @PutMapping("/{accountNumber}/unblock")
+    public ResponseEntity<String> unblockAccount(@PathVariable String accountNumber) {
+        accountService.unblockAccount(accountNumber);
+
+        return ResponseEntity.ok("Account unblocked successfully");
+    }
+
     @PutMapping("/{accountNumber}/deduct")
     public ResponseEntity<String> deductBalance(@PathVariable String accountNumber, @RequestParam BigDecimal amount) {
         accountService.deductBalance(accountNumber, amount);
@@ -49,7 +56,7 @@ public class AccountController {
     @PutMapping("/{accountNumber}/deposit")
     public ResponseEntity<String> depositBalance(@PathVariable String accountNumber, @RequestParam BigDecimal amount) {
         accountService.depositBalance(accountNumber, amount);
-        return ResponseEntity.ok("Balance deducted successfully");
+        return ResponseEntity.ok("Balance deposited successfully");
     }
 
 }

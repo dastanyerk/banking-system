@@ -11,12 +11,14 @@ import com.dastan.transaction_service.event.TransactionInitiatedEvent;
 import com.dastan.transaction_service.mapper.TransactionMapper;
 import com.dastan.transaction_service.repository.TransactionRepository;
 import com.dastan.transaction_service.service.TransactionService;
+import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -31,6 +33,8 @@ public class TransactionServiceImpl implements TransactionService {
     private final AccountServiceClient accountServiceClient;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final RedisTemplate<String, String> redisTemplate;
+    public static final String OTP_KEY_PREFIX = "verification:otp:";
+    private static final Duration FRAUD_WINDOW = Duration.ofSeconds(60);
 
     private static final String TRANSACTION_INITIATED_TOPIC = "transaction.initiated";
     private static final String TRANSACTION_COMPLETED_TOPIC = "transaction.completed";
@@ -84,28 +88,84 @@ public class TransactionServiceImpl implements TransactionService {
                 () -> new RuntimeException("Transaction not found: " + transactionId)
         );
 
-        String otpKey = "verification:otp" + transactionId;
-        String storedOtp = redisTemplate.opsForValue().get(otpKey);
+        if (transaction.getTransactionStatus() != TransactionStatus.PENDING_VERIFICATION) {
+            throw new IllegalStateException("Transaction is not awaiting verification: " + transactionId);
+        }
 
-        if(storedOtp == null) {
+        String otpKey = OTP_KEY_PREFIX + transactionId;
+        String storedOtp = redisTemplate.opsForValue().getAndDelete(otpKey);
+
+        if (storedOtp == null) {
             log.warn("OTP expired for transaction: {}", transactionId);
             compensateTransaction(transaction, "OTP is expired. Transaction cancelled and money refunded");
             return TransactionMapper.toResponse(transaction);
         }
 
-        if (!storedOtp.equals(otpKey)) {
+        if (!storedOtp.equals(otp)) {
             log.warn("Wrong OTP. Blocking account and refunding money: {}", transactionId);
-            redisTemplate.delete(otpKey);
             blockAccountAndCompensate(transaction, "Wrong OTP entered. Transaction cancelled and account blocked for security");
-
             return TransactionMapper.toResponse(transaction);
         }
 
         log.info("OTP verified. Completing transaction: {}", transactionId);
-        redisTemplate.delete(otpKey);
         completeTransaction(transaction);
-
         return TransactionMapper.toResponse(transaction);
+    }
+
+    private void reverseRelatedTransactions(Transaction flagged, String reason) {
+        LocalDateTime from = flagged.getCreatedAt().minus(FRAUD_WINDOW);
+
+        List<Transaction> related = transactionRepository
+                .findBySenderAccountNumberAndTransactionStatusInAndCreatedAtAfter(
+                        flagged.getSenderAccountNumber(),
+                        List.of(TransactionStatus.COMPLETED,
+                                TransactionStatus.PROCESSING,
+                                TransactionStatus.PENDING_VERIFICATION),
+                        from);
+
+        log.warn("Reversing {} related transactions for account {}",
+                related.size(), flagged.getSenderAccountNumber());
+
+        for (Transaction tx : related) {
+            if (tx.getId().equals(flagged.getId())) {
+                continue;
+            }
+
+            if (tx.getTransactionStatus() == TransactionStatus.COMPLETED) {
+                reverseCompleted(tx, reason);
+            } else {
+                // ещё не дошло до получателя — вернуть отправителю
+                redisTemplate.delete(OTP_KEY_PREFIX + tx.getId());
+                compensateTransaction(tx, reason);
+            }
+        }
+    }
+
+    private void reverseCompleted(Transaction transaction, String reason) {
+        try {
+            accountServiceClient.deductBalance(transaction.getReceiverAccountNumber(), transaction.getAmount());
+            accountServiceClient.depositBalance(transaction.getSenderAccountNumber(), transaction.getAmount());
+
+            transaction.setTransactionStatus(TransactionStatus.REVERSED);
+            transaction.setFailureReason("Reversed as part of fraudulent series: " + reason);
+            transactionRepository.save(transaction);
+
+            Map<String, Object> refundEvent = new HashMap<>();
+            refundEvent.put("transactionId", transaction.getId());
+            refundEvent.put("senderAccountNumber", transaction.getSenderAccountNumber());
+            refundEvent.put("amount", transaction.getAmount());
+            refundEvent.put("reason", reason);
+            kafkaTemplate.send(TRANSACTION_REFUNDED_TOPIC, transaction.getId(), refundEvent);
+
+            log.warn("Transaction {} reversed: {} returned to {}",
+                    transaction.getId(), transaction.getAmount(), transaction.getSenderAccountNumber());
+
+        } catch (FeignException e) {
+            transaction.setTransactionStatus(TransactionStatus.REVERSAL_FAILED);
+            transaction.setFailureReason("Reversal failed: " + e.getMessage());
+            transactionRepository.save(transaction);
+            log.error("Could not reverse transaction {}", transaction.getId(), e);
+        }
     }
 
     private void compensateTransaction(Transaction transaction, String reason) {
@@ -133,11 +193,16 @@ public class TransactionServiceImpl implements TransactionService {
         fraudEvent.put("transactionId", transaction.getId());
         fraudEvent.put("accountNumber", transaction.getSenderAccountNumber());
         fraudEvent.put("reason", reason);
-
         kafkaTemplate.send(FRAUD_DETECTED_TOPIC, transaction.getSenderAccountNumber(), fraudEvent);
-        log.warn("fraud.detected published - account: {} will be blocked. Kindly contact to the bank", transaction.getSenderAccountNumber());
+        log.warn("fraud.detected published - account {} will be blocked", transaction.getSenderAccountNumber());
 
         compensateTransaction(transaction, reason);
+
+        try {
+            reverseRelatedTransactions(transaction, reason);
+        } catch (Exception e) {
+            log.error("Failed to reverse related transactions for {}", transaction.getSenderAccountNumber(), e);
+        }
     }
 
     private void completeTransaction(Transaction transaction) {
