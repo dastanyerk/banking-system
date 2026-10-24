@@ -11,7 +11,6 @@ spring:
       group-id: fraud-service-group
       auto-offset-reset: earliest
       value-deserializer: org.springframework.kafka.support.serializer.JacksonJsonDeserializer
-      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
       properties:
         spring:
           json:
@@ -25,7 +24,6 @@ spring:
                 type: java.util.HashMap
 
     producer:
-      value-deserializer: org.springframework.kafka.support.serializer.JacksonJsonDeserializer
       value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
 
 server:
